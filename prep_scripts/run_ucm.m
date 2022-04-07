@@ -5,9 +5,9 @@
 % Author: Ankush Gupta
 
 % path to the directory containing images, which need to be segmented
-img_dir = 'dir/containing/images';
+img_dir = '/data2/synth90k/bg_images/';
 % path to the mcg/pre-trained directory.
-mcg_dir = '/path/to/mcg/pre-trained';
+mcg_dir = '/data2/synth90k/mcg/pre-trained/';
 
 imsize = [240,NaN];
 % "install" the MCG toolbox:
@@ -22,7 +22,7 @@ names = cell(numel(imname),1);
 ucms = cell(numel(imname),1);
 
 %parpool('AGLocal',4);
-parfor i = 1:numel(imname)
+for i = 1:numel(imname)
 	fprintf('%d of %d\n',i,numel(imname));
 	try
     im_name = fullfile(img_dir,imname{i});
@@ -35,4 +35,4 @@ parfor i = 1:numel(imname)
 	names{i} = imname{i};
 	ucms{i} = im2ucm(im,'fast');
 end
-save('ucm.mat','ucms','names','-v7.3');
+save('ucm.mat','ucms','names');
