@@ -29,7 +29,7 @@ def move_bb(bbs, t):
     """
     return bbs + t[:,None,None]
 
-def crop_safe(arr, rect, bbs=[], pad=0):
+def crop_safe(arr, rect, bbs=[], pad=4):
     """
     ARR : arr to crop
     RECT: (x,y,w,h) : area to crop to
@@ -39,12 +39,21 @@ def crop_safe(arr, rect, bbs=[], pad=0):
     Does safe cropping. Returns the cropped rectangle and
     the adjusted bounding-boxes
     """
+    # a = np.expand_dims(arr,2)
+    # cv2.imwrite('results/surf1.png',a)
     rect = np.array(rect)
-    rect[:2] -= pad
-    rect[2:] += 2*pad
+    # rect[:2] -= pad
+    rect[2:] += pad
     v0 = [max(0,rect[0]), max(0,rect[1])]
     v1 = [min(arr.shape[0], rect[0]+rect[2]), min(arr.shape[1], rect[1]+rect[3])]
-    arr = arr[v0[0]:v1[0],v0[1]:v1[1],...]
+    x0 = [max(0,int(arr.shape[0]/2 - rect[2]/2 + pad/2)), max(0,int(arr.shape[1]/2 - rect[3]/2 - pad/2))]
+    x1 = [min(arr.shape[0],int(arr.shape[0]/2 + rect[2]/2 - pad/2)), min(arr.shape[1],int(arr.shape[1]/2 + rect[3]/2 + pad/2 +1))]
+    if rect[2] > arr.shape[0]:
+        arr = arr[0:arr.shape[0],x0[1]:x1[1]]
+    else:
+        arr = arr[x0[0]:x1[0],x0[1]:x1[1],...]
+    # a = np.expand_dims(arr,2)
+    # cv2.imwrite('results/surf2.png',a)
     if len(bbs) > 0:
         for i in range(len(bbs)):
             bbs[i,0] -= v0[0]
@@ -83,17 +92,17 @@ class RenderFont(object):
     def __init__(self, data_dir='data'):
         # distribution over the type of text:
         # whether to get a single word, paragraph or a line:
-        self.p_text = {0.0 : 'WORD',
+        self.p_text = {1.0 : 'WORD',
                        0.0 : 'LINE',
-                       1.0 : 'PARA'}
+                       0.0 : 'PARA'}
 
         ## TEXT PLACEMENT PARAMETERS:
         self.f_shrink = 0.90
         self.max_shrink_trials = 5 # 0.9^5 ~= 0.6
         # the minimum number of characters that should fit in a mask
         # to define the maximum font height.
-        self.min_nchar = 2
-        self.min_font_h = 16 #px : 0.6*12 ~ 7px <= actual minimum height
+        self.min_nchar = 1
+        self.min_font_h = 27 #px : 0.6*12 ~ 7px <= actual minimum height
         self.max_font_h = 120 #px
         self.p_flat = 0.10
 
@@ -171,8 +180,8 @@ class RenderFont(object):
         isword = len(word_text.split())==1
 
         # do curved iff, the length of the word <= 10
-        if not isword or wl > 10 or np.random.rand() > self.p_curved:
-            return self.render_multiline(font, word_text)
+        # if not isword or wl > 10 or np.random.rand() > self.p_curved:
+        #     return self.render_multiline(font, word_text)
 
         # create the surface:
         lspace = font.get_sized_height() + 1
@@ -246,6 +255,8 @@ class RenderFont(object):
         bbs = np.array(bbs)
         surf_arr, bbs = crop_safe(pygame.surfarray.pixels_alpha(surf), rect_union, bbs, pad=5)
         surf_arr = surf_arr.swapaxes(0,1)
+        # a = np.expand_dims(surf_arr,2)
+        # cv2.imwrite('results/surf.png',a)
         return surf_arr, word_text, bbs
 
 
@@ -367,6 +378,7 @@ class RenderFont(object):
             text = self.text_source.sample(nline,nchar,text_type)
             if len(text)==0 or np.any([len(line)==0 for line in text]):
                 continue
+            text = text.replace("\n"," ")
             #print colorize(Color.GREEN, text)
 
             # render the text:
@@ -397,18 +409,18 @@ class FontState(object):
     """
     Defines the random state of the font rendering  
     """
-    size = [50, 10]  # normal dist mean, std
-    underline = 0.05
-    strong = 0.5
+    size = [7, 2]  # normal dist mean, std
+    underline = 0.00
+    strong = 0.1
     oblique = 0.2
-    wide = 0.5
+    wide = 0.1
     strength = [0.05, 0.1]  # uniform dist in this interval
-    underline_adjustment = [1.0, 2.0]  # normal dist mean, std
-    kerning = [2, 5, 0, 20]  # beta distribution alpha, beta, offset, range (mean is a/(a+b))
+    underline_adjustment = [0.0, 0.0]  # normal dist mean, std
+    kerning = [2, 5, 0, 4]  # beta distribution alpha, beta, offset, range (mean is a/(a+b))
     border = 0.25
     random_caps = -1 ## don't recapitalize : retain the capitalization of the lexicon
     capsmode = [str.lower, str.upper, str.capitalize]  # lower case, upper case, proper noun
-    curved = 0.2
+    curved = 0.1
     random_kerning = 0.2
     random_kerning_amount = 0.1
 
@@ -527,9 +539,9 @@ class TextSource(object):
 
         # distribution over line/words for LINE/PARA:
         self.p_line_nline = np.array([0.85, 0.10, 0.05])
-        self.p_line_nword = [4,3,12]  # normal: (mu, std)
-        self.p_para_nline = [1.0,1.0]#[1.7,3.0] # beta: (a, b), max_nline
-        self.p_para_nword = [1.7,3.0,10] # beta: (a,b), max_nword
+        self.p_line_nword = [4,3,3]  # normal: (mu, std)
+        self.p_para_nline = [1.7,3.0]#[1.7,3.0] # beta: (a, b), max_nline
+        self.p_para_nword = [1.7,3.0,3] # beta: (a,b), max_nword
 
         # probability to center-align a paragraph:
         self.center_para = 0.5

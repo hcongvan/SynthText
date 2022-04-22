@@ -20,7 +20,7 @@ import text_utils as tu
 from colorize3_poisson import Colorize
 from common import *
 import traceback, itertools
-import imageio
+# import imageio
 
 
 DEBUG = True
@@ -30,8 +30,8 @@ class TextRegions(object):
     Get region from segmentation which are good for placing
     text.
     """
-    minWidth = 30  # px
-    minHeight = 30  # px
+    minWidth = 20  # px
+    minHeight = 20  # px
     minAspect = 0.3  # w > 0.3*h
     maxAspect = 7
     minArea = 100  # number of pix
@@ -377,7 +377,7 @@ class RendererV3(object):
         self.colorizer = Colorize(data_dir)
         self.min_char_height = 8  # px
         self.min_asp_ratio = 0.4  #
-        self.max_text_regions = 7
+        self.max_text_regions = 3
         self.max_time = max_time
 
     def filter_regions(self, regions, filt):
@@ -455,7 +455,7 @@ class RendererV3(object):
         hw = np.c_[h, w]
 
         # remove newlines and spaces:
-        text = ''.join(text.split())
+        # text = ''.join(text.split())
         assert len(text) == bb.shape[-1]
 
         alnum = np.array([ch.isalnum() for ch in text])

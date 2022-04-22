@@ -21,9 +21,9 @@ from data_provider import DateProvider
 
 
 # Define some configuration variables:
-NUM_IMG = 1  # number of images to use for generation (-1 to use all available):
+NUM_IMG = 10000  # number of images to use for generation (-1 to use all available):
 INSTANCE_PER_IMAGE = 1  # number of times to use the same image
-SECS_PER_IMG = 5  # max time per image in seconds
+SECS_PER_IMG = None  # max time per image in seconds
 
 # path to the data-file, containing image, depth and segmentation:
 DATA_PATH = 'data'
@@ -83,6 +83,8 @@ def main(viz=False, debug=False, output_masks=False, data_path=None):
     start_idx, end_idx = 0, min(NUM_IMG, N)
 
     renderer = RendererV3(DATA_PATH, max_time=SECS_PER_IMG)
+    f_gt = open('results/text/gt.txt','w+')
+    count = 0
     for i in range(start_idx, end_idx):
         imname = imnames[i]
 
@@ -111,6 +113,18 @@ def main(viz=False, debug=False, output_masks=False, data_path=None):
             res = renderer.render_text(img, depth, seg, area, label,
                                   ninstance=INSTANCE_PER_IMAGE)
             if len(res) > 0:
+                for idx, t in enumerate(res[0]['txt']):
+                    count += 1
+                    x = res[0]['wordBB'][0,:,idx]
+                    y = res[0]['wordBB'][1,:,idx]
+                    xmin = int(x.min())
+                    xmax = int(x.max())
+                    ymin = int(y.min())
+                    ymax = int(y.max())
+                    imgword = res[0]['img'][ymin:ymax,xmin:xmax,:]
+                    imgword = cv2.cvtColor(imgword, cv2.COLOR_RGB2BGR)
+                    cv2.imwrite('results/text/synth_{number:06}.png'.format(number=count), imgword)
+                    f_gt.writelines('text/synth_{number:06}.png {label}\n'.format(number=count, label=t))
                 # non-empty : successful in placing text:
                 add_res_to_db(imname, res, out_db)
                 if debug:
@@ -164,6 +178,7 @@ def main(viz=False, debug=False, output_masks=False, data_path=None):
             traceback.print_exc()
             print(colorize(Color.GREEN, '>>>> CONTINUING....', bold=True))
             continue
+    f_gt.close()
     provider.close()
     out_db.close()
 
@@ -178,7 +193,7 @@ if __name__ == '__main__':
                         help='flag for turning on output of masks')
     parser.add_argument('--debug', action='store_true', dest='debug', default=False,
                         help='flag for turning on debug output')
-    parser.add_argument("--data", type=str, dest='data_path', default=None,
+    parser.add_argument("--data", type=str, dest='data_path', default='./data',
                         help="absolute path to data directory containing images, segmaps and depths")
     args = parser.parse_args()
     main(viz=args.viz, debug=args.debug, output_masks=args.output_masks, data_path=args.data_path)
